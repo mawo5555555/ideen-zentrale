@@ -124,7 +124,7 @@
 </main>
 
 <script>
-const VERSION = "1.4.0";
+const VERSION = "1.5.0";
 const KEY = "ideen-zentrale-v1";
 const $ = id => document.getElementById(id);
 // Bekannte Projekte aus den offenen Chats, mit Schlüsselwörtern zur Auto-Zuordnung
@@ -140,9 +140,9 @@ const KATALOG = {
   "Sprachförderung": ["sprachförderung", "stottern", "sprache", "übung"],
   "Küchenfee Rezepte": ["küchenfee", "rezept", "kochen", "küche"],
   "Schrauberschule": ["schrauberschule", "werkstatt", "lack", "tuning", "animation"],
-  "Schichtenverzeichnis": ["schichtenverzeichnis", "grundwasser", "bohrung"],
+  "Schichtenverzeichnis": ["schichtenverzeichnis", "schichtenverzeichnisse", "schichtverzeichnis", "grundwasser", "grundwasserleiter", "bohrung", "bohrprofil", "geotechnik", "brunnen"],
   "EASun Wechselrichter": ["easun", "wechselrichter", "rs232", "solar"],
-  "Mac/Xcode": ["xcode", "mac", "sonoma", "oclp", "backup"]
+  "Mac/Xcode": ["xcode", "macos", "mac os", "sonoma", "oclp", "backup"]
 };
 // Ordner und Startsatz je Projekt (aus CHAT-STARTER.md)
 const PROJEKTE = {
@@ -168,11 +168,22 @@ let state = JSON.parse(localStorage.getItem(KEY) || '{"ideen":[],"projekte":["Al
 Object.keys(KATALOG).forEach(p => { if (!state.projekte.includes(p)) state.projekte.push(p); });
 
 // Zuordnung: Projekt mit den meisten Treffern, sonst neues Projekt aus den Wörtern der Idee
+// Treffer = Summe der Länge der getroffenen Stichwörter. Ganze Wörter zählen; Wortteile nur bei langen Stichwörtern (z. B. Komposita)
+function trefferPunkte(text, words) {
+  const low = text.toLowerCase();
+  const tokens = low.split(/[^a-zäöüß0-9]+/).filter(Boolean);
+  let punkte = 0;
+  for (const w of words) {
+    if (w.includes(" ")) { if ((" " + low + " ").includes(" " + w + " ")) punkte += w.length; continue; }
+    if (tokens.includes(w)) punkte += w.length;
+    else if (w.length >= 7 && tokens.some(t => t.includes(w))) punkte += w.length;
+  }
+  return punkte;
+}
 function klassifiziere(text) {
-  const t = " " + text.toLowerCase() + " ";
   let best = null, score = 0;
   for (const [p, words] of Object.entries(KATALOG)) {
-    const s = words.filter(w => t.includes(w)).length;
+    const s = trefferPunkte(text, words);
     if (s > score) { score = s; best = p; }
   }
   if (best) return { projekt: best, neu: false };
