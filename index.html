@@ -124,7 +124,7 @@
 </main>
 
 <script>
-const VERSION = "1.5.0";
+const VERSION = "1.6.0";
 const KEY = "ideen-zentrale-v1";
 const $ = id => document.getElementById(id);
 // Bekannte Projekte aus den offenen Chats, mit Schlüsselwörtern zur Auto-Zuordnung
@@ -249,11 +249,50 @@ function render() {
     const t = document.createElement("div"); t.textContent = i.text;
     const m = document.createElement("div"); m.className = "meta";
     m.innerHTML = `<span class="tag">${i.projekt}</span>${new Date(i.zeit).toLocaleString("de-DE")}`;
+    const knoepfe = document.createElement("div"); knoepfe.className = "row"; knoepfe.style.marginTop = "6px";
+    const edit = document.createElement("button");
+    edit.className = "sec"; edit.textContent = "Bearbeiten"; edit.style.padding = "6px";
+    edit.onclick = () => bearbeiten(d, i);
     const del = document.createElement("button");
-    del.className = "sec"; del.textContent = "Löschen"; del.style.marginTop = "6px"; del.style.padding = "6px";
-    del.onclick = () => { if (confirm("Idee löschen?")) { state.ideen = state.ideen.filter(x => x.id !== i.id); persist(); log("Gelöscht: " + i.id); render(); } };
-    d.append(t, m, del); list.appendChild(d);
+    del.className = "sec"; del.textContent = "Löschen"; del.style.padding = "6px";
+    del.onclick = async () => {
+      if (!confirm("Idee löschen?")) return;
+      state.ideen = state.ideen.filter(x => x.id !== i.id); persist(); log("Gelöscht: " + i.text.slice(0, 40)); render();
+      if (i.cloud) { try { await srvFetch("/ideen/" + i.id, { method: "DELETE" }); srvStatus("In der Cloud gelöscht"); } catch (e) { log("Cloud-Löschen: " + e.message); } }
+    };
+    knoepfe.append(edit, del);
+    d.append(t, m, knoepfe); list.appendChild(d);
   });
+}
+
+// ---- Idee bearbeiten: Text und Projekt ändern ----
+function bearbeiten(box, i) {
+  box.innerHTML = "";
+  const ta = document.createElement("textarea"); ta.value = i.text;
+  const sel = document.createElement("select"); sel.style.marginTop = "8px";
+  state.projekte.forEach(p => sel.add(new Option(p, p)));
+  sel.add(new Option("+ Neues Projekt …", "__neu"));
+  sel.value = i.projekt;
+  const neu = document.createElement("input"); neu.placeholder = "Name des neuen Projekts"; neu.style.marginTop = "8px"; neu.style.display = "none";
+  sel.onchange = () => { neu.style.display = sel.value === "__neu" ? "" : "none"; };
+  const row = document.createElement("div"); row.className = "row"; row.style.marginTop = "8px";
+  const ok = document.createElement("button"); ok.textContent = "Übernehmen";
+  const ab = document.createElement("button"); ab.className = "sec"; ab.textContent = "Abbrechen";
+  ab.onclick = () => render();
+  ok.onclick = async () => {
+    const text = ta.value.trim(); if (!text) return;
+    const projekt = sel.value === "__neu" ? neu.value.trim() : sel.value; if (!projekt) return;
+    i.text = text; i.projekt = projekt;
+    if (!state.projekte.includes(projekt)) state.projekte.push(projekt);
+    persist(); log("Bearbeitet: " + projekt + ": " + text.slice(0, 40)); render();
+    if (i.cloud) {
+      try { await srvFetch("/ideen/" + i.id, { method: "PUT", body: JSON.stringify({ text, projekt }) }); srvStatus("In der Cloud geändert"); }
+      catch (e) { log("Cloud-Ändern: " + e.message); srvStatus("Cloud-Ändern fehlgeschlagen: " + e.message); }
+    }
+  };
+  row.append(ok, ab);
+  box.append(ta, sel, neu, row);
+  ta.focus();
 }
 
 function save() {
@@ -268,9 +307,9 @@ function save() {
   state.ideen.push(idee);
   persist(); log((auto ? "Auto-Zuordnung " : "Gespeichert in ") + projekt + ": " + text.slice(0, 40));
   // Cloud: Server ordnet zu und vergibt die ID; lokalen Eintrag angleichen
-  cloudSpeichern(text).then(c => {
+  cloudSpeichern(text, auto ? null : projekt).then(c => {
     if (!c) return;
-    idee.id = c.id; idee.projekt = c.projekt; idee.zeit = c.zeit;
+    idee.id = c.id; idee.projekt = c.projekt; idee.zeit = c.zeit; idee.cloud = true;
     if (!state.projekte.includes(c.projekt)) state.projekte.push(c.projekt);
     persist(); render(); srvStatus("In der Cloud gespeichert: " + c.projekt);
   });
@@ -295,9 +334,10 @@ $("rec").onclick = () => {
   recog.interimResults = true;
   baseText = $("text").value ? $("text").value.trimEnd() + " " : "";
   recog.onresult = e => {
-    let txt = "";
-    for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
-    $("text").value = baseText + txt;
+    // Diktat-Stücke mit Leerzeichen verbinden (sonst kleben Wörter zusammen)
+    const teile = [];
+    for (let i = 0; i < e.results.length; i++) teile.push(e.results[i][0].transcript.trim());
+    $("text").value = baseText + teile.filter(Boolean).join(" ").replace(/\s+/g, " ");
   };
   recog.onerror = e => { $("hint").textContent = "Diktat-Fehler: " + e.error; log("Diktat-Fehler: " + e.error); };
   recog.onend = () => {
@@ -327,9 +367,9 @@ async function srvFetch(path, opt = {}) {
   if (!r.ok) throw new Error("HTTP " + r.status);
   return r.json();
 }
-async function cloudSpeichern(text) {
+async function cloudSpeichern(text, projekt) {
   if (!SRV.url || !SRV.token) return null;
-  try { const i = await srvFetch("/ideen", { method: "POST", body: JSON.stringify({ text }) }); log("Cloud: " + i.projekt); return i; }
+  try { const i = await srvFetch("/ideen", { method: "POST", body: JSON.stringify(projekt ? { text, projekt } : { text }) }); log("Cloud: " + i.projekt); return i; }
   catch (e) { log("Cloud-Fehler: " + e.message); return null; }
 }
 // ---- Offene Punkte aus den Projekten (vom Mac-Skript in die Cloud gelegt) ----
@@ -359,10 +399,29 @@ function renderOffen(stand) {
 $("sync").onclick = async () => {
   try {
     const d = await srvFetch("/ideen");
-    const ids = new Set(state.ideen.map(i => i.id));
-    d.ideen.forEach(i => { if (!ids.has(i.id)) state.ideen.push(i); });
+    const cloudIds = new Set(d.ideen.map(i => i.id));
+    // 0. Ältere Einträge mit Server-ID (8 Hex-Zeichen) gelten als Cloud-Ideen
+    state.ideen.forEach(i => { if (/^[0-9a-f]{8}$/.test(i.id)) i.cloud = true; });
+    // 1. Nur lokal gespeicherte Ideen hochladen (z. B. vor dem Verbinden erfasst)
+    let hoch = 0;
+    for (const i of state.ideen.filter(x => !x.cloud && !cloudIds.has(x.id))) {
+      const c = await cloudSpeichern(i.text, i.projekt);
+      if (c) { i.id = c.id; i.cloud = true; d.ideen.push({ ...c, projekt: i.projekt }); cloudIds.add(c.id); hoch++; }
+    }
+    // 2. Woanders gelöschte Ideen entfernen
+    const vorher = state.ideen.length;
+    state.ideen = state.ideen.filter(i => !i.cloud || cloudIds.has(i.id));
+    const weg = vorher - state.ideen.length;
+    // 3. Cloud-Stand übernehmen (neue und geänderte Ideen)
+    d.ideen.forEach(c => {
+      const l = state.ideen.find(i => i.id === c.id);
+      if (l) Object.assign(l, c, { cloud: true }); else state.ideen.push({ ...c, cloud: true });
+    });
     d.projekte.forEach(p => { if (!state.projekte.includes(p)) state.projekte.push(p); });
-    persist(); render(); srvStatus("Synchronisiert: " + state.ideen.length + " Ideen"); log("Sync ok");
+    persist(); render();
+    srvStatus("Synchronisiert: " + state.ideen.length + " Ideen" + (hoch ? ", " + hoch + " hochgeladen" : "") + (weg ? ", " + weg + " entfernt" : ""));
+    log("Sync ok (hoch " + hoch + ", weg " + weg + ")");
+    ladeOffen();
   } catch (e) { srvStatus("Sync fehlgeschlagen: " + e.message); log("Sync-Fehler: " + e.message); }
 };
 $("ask").onclick = () => { $("antwort").textContent = beantworte($("frage").value); log("Frage: " + $("frage").value); };
