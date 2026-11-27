@@ -1,6 +1,10 @@
 # Ideen-Zentrale – Stand
 
-**Version:** 1.1.0 (sichtbar oben in der App)
+**Version:** 1.3.0 (sichtbar oben in der App)
+
+## 1.3.0
+- Optik überarbeitet: Projekt-Kacheln im Raster, Layout passt auf Mobil-Bildschirme
+- Anleitung unter „Anleitung“ in der App
 
 ## Worker (Stand 27.11.2026)
 - Live: https://ideen-zentrale.mawo555.workers.dev (Cloudflare, KV „IDEEN“, Token als Secret)
