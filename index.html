@@ -29,8 +29,11 @@
   .item:first-child { border-top:0; }
   .meta { font-size:12px; color:var(--mut); }
   .tag { display:inline-block; background:#3a3a3c; border-radius:8px; padding:2px 8px; font-size:12px; margin-right:4px; }
-  .filter { display:flex; gap:6px; margin-bottom:10px; }
-  .filter button { padding:8px; font-size:14px; }
+  .filter { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+  .filter button { flex:0 1 auto; padding:8px 10px; font-size:14px; max-width:100%; white-space:normal; text-align:left; }
+  .pdet { background:#1c1c1e; border-radius:12px; padding:12px; margin-bottom:12px; font-size:14px; }
+  .pdet code { color:#ffd60a; word-break:break-word; }
+  .pdet .row button { font-size:14px; padding:10px; }
   .filter button.on { background:var(--acc); }
   details { font-size:13px; color:var(--mut); }
   pre { white-space:pre-wrap; font-size:12px; color:#c7c7cc; max-height:200px; overflow:auto; }
@@ -80,6 +83,7 @@
 
   <div class="card">
     <div class="filter" id="filter"></div>
+    <div id="projdetail"></div>
     <div id="list"></div>
   </div>
 
@@ -89,6 +93,17 @@
       <button id="imp" class="sec">Import</button>
     </div>
     <input type="file" id="impfile" accept="application/json" hidden>
+    <details style="margin-top:10px"><summary>Anleitung</summary>
+      <div style="font-size:14px;color:#f2f2f7;line-height:1.5;margin-top:8px">
+        <b>Ideen erfassen</b><br>🎤 Diktieren antippen, sprechen, Stopp. Dann Speichern.<br><br>
+        <b>Projekt</b><br>„Automatisch zuordnen“ wählt das Projekt. Passt keins, entsteht ein neues.<br><br>
+        <b>Was heute?</b><br>Empfehlung mit Knöpfen: Startsatz kopieren, Chat öffnen.<br><br>
+        <b>Projekt-Kachel</b><br>Antippen zeigt Ordner und Startsatz. Chat-Link eintragen und speichern, dann öffnet „Chat öffnen“ direkt den Chat.<br><br>
+        <b>Cloud</b><br>Einmal Worker-URL und Token unter „Cloud-Verbindung“ eintragen, „Verbinden“, dann „Synchronisieren“.<br><br>
+        <b>Export/Import</b><br>Export speichert alle Ideen als Datei, Import lädt sie wieder.<br><br>
+        <b>Grenze</b><br>Die Zuordnung ist Stichwortabgleich, keine KI. Stichwörter stehen in index.html (KATALOG).
+      </div>
+    </details>
     <details style="margin-top:10px"><summary>Logbuch</summary><pre id="log"></pre></details>
   </div>
 </main>
@@ -114,6 +129,26 @@ const KATALOG = {
   "EASun Wechselrichter": ["easun", "wechselrichter", "rs232", "solar"],
   "Mac/Xcode": ["xcode", "mac", "sonoma", "oclp", "backup"]
 };
+// Ordner und Startsatz je Projekt (aus CHAT-STARTER.md)
+const PROJEKTE = {
+  "PFOTEN WEG (Alarm)": { ordner: "simson-alarm", starter: "Weiter mit PFOTEN WEG. Lies `simson-alarm/BESTELL-SESSION.md` und `INVENTAR.md`." },
+  "Expeditionsmobil/Maggie": { ordner: "maggie3d", starter: "Weiter mit Maggie 3D. Lies `maggie3d/` und die Memory-Datei maggie-3d-dashboard." },
+  "Home Assistant": { ordner: "", starter: "Weiter mit Home Assistant. Lies die Memory-Dateien zu HA und ESP32/ESP-01." },
+  "ESP32 Relaisboard": { ordner: "", starter: "Weiter mit ESP32 Relaisboard. Lies die Memory-Dateien zu ESP32/ESP-01." },
+  "Schrauberschule": { ordner: "schrauberschule", starter: "Weiter mit Schrauberschule. Lies `schrauberschule/` und die Memory-Dateien zur Schrauberschule." },
+  "Küchenfee Rezepte": { ordner: "kuechenfee", starter: "Weiter mit Küchenfee. Lies `kuechenfee/`." },
+  "Wetter-/Glätte-App (Glatt-Kieker)": { ordner: "glatt-kieker", starter: "Weiter mit Glatt-Kieker. Lies `glatt-kieker/`." },
+  "Fahrschule 2.0": { ordner: "fahrschule", starter: "Weiter mit Fahrschule 2.0. Lies `fahrschule/`." },
+  "Sprachförderung": { ordner: "sprachfoerderung", starter: "Weiter mit Sprachförderung. Lies `sprachfoerderung/`." },
+  "Schichtenverzeichnis": { ordner: "schichtenverzeichnis", starter: "Weiter mit Schichtenverzeichnis. Lies `schichtenverzeichnis/`." },
+  "Tesla OBD": { ordner: "", starter: "Weiter mit Tesla OBD. Lies die Memory-Datei tesla-obd-projekt." },
+  "OBD universal": { ordner: "", starter: "Weiter mit OBD universal. Lies die Memory-Datei obd-universal-projekt." },
+  "EASun Wechselrichter": { ordner: "", starter: "Weiter mit EASun Wechselrichter. Lies die Memory-Datei easun-wechselrichter-lokal." },
+  "Mac/Xcode": { ordner: "", starter: "Weiter mit Mac/Xcode. Lies die Memory-Datei mac-optimierung-3d-xcode." }
+};
+const projInfo = p => PROJEKTE[p] || { ordner: "", starter: "Weiter mit " + p + "." };
+const links = () => JSON.parse(localStorage.getItem(KEY + "-links") || "{}");
+
 let state = JSON.parse(localStorage.getItem(KEY) || '{"ideen":[],"projekte":["Allgemein"]}');
 Object.keys(KATALOG).forEach(p => { if (!state.projekte.includes(p)) state.projekte.push(p); });
 
@@ -138,6 +173,7 @@ function empfehlung() {
   offen.forEach(i => { (nach[i.projekt] = nach[i.projekt] || []).push(i); });
   const ranking = Object.entries(nach).sort((a, b) => b[1].length - a[1].length || a[1][0].zeit.localeCompare(b[1][0].zeit));
   const [p, liste] = ranking[0];
+  letzteEmpf = p;
   const aeltest = liste.sort((a, b) => a.zeit.localeCompare(b.zeit))[0];
   return `Empfehlung heute: ${p} (${liste.length} offene Idee${liste.length > 1 ? "n" : ""}). Älteste: „${aeltest.text.slice(0, 80)}“`;
 }
@@ -177,6 +213,7 @@ function renderProjects() {
 
 function render() {
   renderProjects();
+  renderDetail();
   const list = $("list"); list.innerHTML = "";
   const items = state.ideen.filter(i => filterProj === "Alle" || i.projekt === filterProj)
     .sort((a, b) => b.zeit.localeCompare(a.zeit));
@@ -279,7 +316,41 @@ $("sync").onclick = async () => {
   } catch (e) { srvStatus("Sync fehlgeschlagen: " + e.message); log("Sync-Fehler: " + e.message); }
 };
 $("ask").onclick = () => { $("antwort").textContent = beantworte($("frage").value); log("Frage: " + $("frage").value); };
-$("heute").onclick = () => { $("antwort").textContent = empfehlung(); log("Empfehlung abgefragt"); };
+// ---- Projekt-Aktionen: Startsatz kopieren, Chat öffnen ----
+let letzteEmpf = null;
+function aktionen(p) {
+  if (!p) return;
+  const box = $("antwort");
+  const wrap = document.createElement("div"); wrap.className = "row"; wrap.style.marginTop = "8px";
+  const kopie = document.createElement("button"); kopie.className = "sec"; kopie.textContent = "Startsatz kopieren";
+  kopie.onclick = async () => { await navigator.clipboard.writeText(projInfo(p).starter); kopie.textContent = "Kopiert ✓ – in den Chat einfügen"; log("Startsatz kopiert: " + p); };
+  const open = document.createElement("button"); open.textContent = "Chat öffnen";
+  open.onclick = () => { const url = links()[p]; if (url) window.open(url, "_blank"); else { $("hint").textContent = "Noch kein Chat-Link für " + p + " hinterlegt (unten im Projekt)."; } };
+  wrap.append(kopie, open); box.appendChild(wrap);
+}
+$("heute").onclick = () => {
+  $("antwort").textContent = empfehlung(); aktionen(letzteEmpf); log("Empfehlung abgefragt");
+};
+
+function renderDetail() {
+  const box = $("projdetail"); box.innerHTML = "";
+  if (filterProj === "Alle") return;
+  const p = filterProj, info = projInfo(p);
+  const d = document.createElement("div"); d.className = "pdet";
+  d.innerHTML = `<div><b>${p}</b></div><div class="meta">Ordner: ${info.ordner ? "<code>" + info.ordner + "/</code>" : "–"}</div>
+    <div style="margin-top:8px"><code>${info.starter}</code></div>`;
+  const row = document.createElement("div"); row.className = "row";
+  const kopie = document.createElement("button"); kopie.className = "sec"; kopie.textContent = "Startsatz kopieren";
+  kopie.onclick = async () => { await navigator.clipboard.writeText(info.starter); kopie.textContent = "Kopiert ✓"; };
+  row.appendChild(kopie);
+  const linkIn = document.createElement("input"); linkIn.placeholder = "Chat-Link (claude.ai/…)"; linkIn.value = links()[p] || ""; linkIn.style.marginTop = "8px";
+  const save = document.createElement("button"); save.className = "sec"; save.textContent = "Link speichern"; save.style.marginTop = "8px";
+  save.onclick = () => { const l = links(); l[p] = linkIn.value.trim(); localStorage.setItem(KEY + "-links", JSON.stringify(l)); save.textContent = "Gespeichert ✓"; log("Chat-Link für " + p); };
+  const open = document.createElement("button"); open.textContent = "Chat öffnen"; open.style.marginTop = "8px";
+  open.onclick = () => { const url = links()[p]; if (url) window.open(url, "_blank"); else save.textContent = "Erst Link eintragen"; };
+  d.append(row, linkIn, save, open);
+  box.appendChild(d);
+}
 
 $("exp").onclick = () => {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
