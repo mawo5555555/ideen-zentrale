@@ -81,6 +81,12 @@
     </details>
   </div>
 
+  <div class="card" id="offenCard" style="display:none">
+    <b>Offene Punkte</b>
+    <div class="meta" id="offenStand"></div>
+    <div id="offen" style="margin-top:8px"></div>
+  </div>
+
   <div class="card">
     <div class="row">
       <input id="frage" placeholder="Frag z. B.: Was machen wir heute?" style="flex:1">
@@ -118,7 +124,7 @@
 </main>
 
 <script>
-const VERSION = "1.3.0";
+const VERSION = "1.4.0";
 const KEY = "ideen-zentrale-v1";
 const $ = id => document.getElementById(id);
 // Bekannte Projekte aus den offenen Chats, mit Schlüsselwörtern zur Auto-Zuordnung
@@ -315,6 +321,30 @@ async function cloudSpeichern(text) {
   try { const i = await srvFetch("/ideen", { method: "POST", body: JSON.stringify({ text }) }); log("Cloud: " + i.projekt); return i; }
   catch (e) { log("Cloud-Fehler: " + e.message); return null; }
 }
+// ---- Offene Punkte aus den Projekten (vom Mac-Skript in die Cloud gelegt) ----
+let OFFEN = {};
+async function ladeOffen() {
+  if (!SRV.url || !SRV.token) return;
+  try {
+    const d = await srvFetch("/offen");
+    OFFEN = d.projekte || {};
+    renderOffen(d.stand);
+  } catch (e) { log("Offene Punkte: " + e.message); }
+}
+function renderOffen(stand) {
+  const names = Object.keys(OFFEN);
+  $("offenCard").style.display = names.length ? "" : "none";
+  $("offenStand").textContent = stand ? "Stand " + new Date(stand).toLocaleString("de-DE") : "";
+  const box = $("offen"); box.innerHTML = "";
+  names.forEach(p => {
+    const det = document.createElement("details"); det.style.marginBottom = "6px";
+    const sum = document.createElement("summary");
+    sum.textContent = p + " (" + OFFEN[p].length + ")"; sum.style.fontWeight = "600"; sum.style.cursor = "pointer";
+    const ul = document.createElement("ul"); ul.style.margin = "6px 0 0 18px"; ul.style.fontSize = "14px";
+    OFFEN[p].forEach(t => { const li = document.createElement("li"); li.textContent = t; li.style.marginBottom = "4px"; ul.appendChild(li); });
+    det.append(sum, ul); box.appendChild(det);
+  });
+}
 $("sync").onclick = async () => {
   try {
     const d = await srvFetch("/ideen");
@@ -379,6 +409,7 @@ $("impfile").onchange = async e => {
 };
 
 log("App gestartet v" + VERSION);
+ladeOffen();
 $("log").textContent = logLines.join("\n");
 render();
 
