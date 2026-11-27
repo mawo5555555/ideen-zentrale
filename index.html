@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ideen">
+<meta name="theme-color" content="#1c1c1e">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Ideen-Zentrale</title>
+<style>
+  :root { color-scheme: dark; --bg:#1c1c1e; --card:#2c2c2e; --txt:#f2f2f7; --mut:#8e8e93; --acc:#0a84ff; --rec:#ff453a; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,system-ui,sans-serif; background:var(--bg); color:var(--txt); padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+  header { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; }
+  h1 { font-size:20px; margin:0; }
+  .ver { font-size:11px; color:var(--mut); }
+  main { padding:0 16px 40px; max-width:640px; margin:0 auto; }
+  .card { background:var(--card); border-radius:14px; padding:14px; margin-bottom:14px; }
+  textarea, select, input { width:100%; background:#1c1c1e; color:var(--txt); border:1px solid #3a3a3c; border-radius:10px; padding:10px; font-size:16px; font-family:inherit; }
+  textarea { min-height:110px; resize:vertical; }
+  .row { display:flex; gap:8px; margin-top:10px; }
+  button { flex:1; border:0; border-radius:12px; padding:14px; font-size:16px; font-weight:600; background:var(--acc); color:#fff; }
+  button.sec { background:#3a3a3c; }
+  button.rec { background:var(--rec); }
+  button.big { font-size:18px; padding:18px; }
+  .hint { font-size:13px; color:var(--mut); margin-top:8px; min-height:18px; }
+  .item { border-top:1px solid #3a3a3c; padding:10px 0; }
+  .item:first-child { border-top:0; }
+  .meta { font-size:12px; color:var(--mut); }
+  .tag { display:inline-block; background:#3a3a3c; border-radius:8px; padding:2px 8px; font-size:12px; margin-right:4px; }
+  .filter { display:flex; gap:6px; margin-bottom:10px; }
+  .filter button { padding:8px; font-size:14px; }
+  .filter button.on { background:var(--acc); }
+  details { font-size:13px; color:var(--mut); }
+  pre { white-space:pre-wrap; font-size:12px; color:#c7c7cc; max-height:200px; overflow:auto; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Ideen-Zentrale</h1>
+  <span class="ver" id="ver"></span>
+</header>
+<main>
+
+  <div class="card">
+    <textarea id="text" placeholder="Idee eintippen oder mit dem Button unten diktieren …"></textarea>
+    <div class="row">
+      <select id="proj" style="flex:1"></select>
+      <input id="newproj" placeholder="neues Projekt" style="flex:1">
+    </div>
+    <div class="row">
+      <button id="rec" class="big">🎤 Diktieren</button>
+      <button id="save" class="sec big">Speichern</button>
+    </div>
+    <div class="hint" id="hint"></div>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>Cloud-Verbindung</summary>
+      <input id="srvurl" placeholder="Worker-URL" style="margin-top:8px">
+      <input id="srvtoken" type="password" placeholder="Token" style="margin-top:8px">
+      <div class="row">
+        <button id="srvsave" class="sec">Verbinden</button>
+        <button id="sync" class="sec">Synchronisieren</button>
+      </div>
+      <div class="hint" id="srvstatus"></div>
+    </details>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <input id="frage" placeholder="Frag z. B.: Was machen wir heute?" style="flex:1">
+      <button id="ask" class="sec">Fragen</button>
+    </div>
+    <div class="hint" id="antwort" style="white-space:pre-wrap;color:#f2f2f7"></div>
+    <div class="row"><button id="heute" class="sec">Was heute?</button></div>
+  </div>
+
+  <div class="card">
+    <div class="filter" id="filter"></div>
+    <div id="list"></div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <button id="exp" class="sec">Export (JSON)</button>
+      <button id="imp" class="sec">Import</button>
+    </div>
+    <input type="file" id="impfile" accept="application/json" hidden>
+    <details style="margin-top:10px"><summary>Logbuch</summary><pre id="log"></pre></details>
+  </div>
+</main>
+
+<script>
+const VERSION = "1.2.0";
+const KEY = "ideen-zentrale-v1";
+const $ = id => document.getElementById(id);
+// Bekannte Projekte aus den offenen Chats, mit Schlüsselwörtern zur Auto-Zuordnung
+const KATALOG = {
+  "Home Assistant": ["home assistant", "ha ", "automation", "lovelace", "dashboard", "esphome", "zigbee"],
+  "ESP32 Relaisboard": ["esp32", "esp-01", "esp01", "relais", "gpio", "esphome", "flash"],
+  "Expeditionsmobil/Maggie": ["maggie", "expedition", "wohnmobil", "bordnetz", "24 v", "kurvenlicht", "stellplatz", "carati", "bt10", "ladebooster", "gps"],
+  "Wetter-/Glätte-App (Glatt-Kieker)": ["wetter", "glätte", "glatt", "glatteis", "vorhersage", "kieker"],
+  "OBD universal": ["obd", "adapter", "eigenbau pkw", "can-bus", "diagnose"],
+  "Tesla OBD": ["tesla", "model 3", "s3xy", "x179"],
+  "PFOTEN WEG (Alarm)": ["pfoten", "fingerweg", "alarm", "herzkasten", "simson", "sim", "bts4175", "aufkleber", "sensor", "24 v", "platine", "modul"],
+  "Fahrschule 2.0": ["fahrschule", "theorie", "führerschein", "klasse b", "fragen"],
+  "Sprachförderung": ["sprachförderung", "stottern", "sprache", "übung"],
+  "Küchenfee Rezepte": ["küchenfee", "rezept", "kochen", "küche"],
+  "Schrauberschule": ["schrauberschule", "werkstatt", "lack", "tuning", "animation"],
+  "Schichtenverzeichnis": ["schichtenverzeichnis", "grundwasser", "bohrung"],
+  "EASun Wechselrichter": ["easun", "wechselrichter", "rs232", "solar"],
+  "Mac/Xcode": ["xcode", "mac", "sonoma", "oclp", "backup"]
+};
+let state = JSON.parse(localStorage.getItem(KEY) || '{"ideen":[],"projekte":["Allgemein"]}');
+Object.keys(KATALOG).forEach(p => { if (!state.projekte.includes(p)) state.projekte.push(p); });
+
+// Zuordnung: Projekt mit den meisten Treffern, sonst neues Projekt aus den Wörtern der Idee
+function klassifiziere(text) {
+  const t = " " + text.toLowerCase() + " ";
+  let best = null, score = 0;
+  for (const [p, words] of Object.entries(KATALOG)) {
+    const s = words.filter(w => t.includes(w)).length;
+    if (s > score) { score = s; best = p; }
+  }
+  if (best) return { projekt: best, neu: false };
+  const kern = text.split(/\s+/).filter(w => w.length > 4).slice(0, 2).join(" ") || "Neues Projekt";
+  return { projekt: kern.charAt(0).toUpperCase() + kern.slice(1), neu: true };
+}
+
+// Antworten lokal aus den gespeicherten Ideen (kein Internet nötig)
+function empfehlung() {
+  const offen = state.ideen.filter(i => !i.erledigt);
+  if (!offen.length) return "Keine offenen Ideen. Heute Zeit für etwas Neues.";
+  const nach = {};
+  offen.forEach(i => { (nach[i.projekt] = nach[i.projekt] || []).push(i); });
+  const ranking = Object.entries(nach).sort((a, b) => b[1].length - a[1].length || a[1][0].zeit.localeCompare(b[1][0].zeit));
+  const [p, liste] = ranking[0];
+  const aeltest = liste.sort((a, b) => a.zeit.localeCompare(b.zeit))[0];
+  return `Empfehlung heute: ${p} (${liste.length} offene Idee${liste.length > 1 ? "n" : ""}). Älteste: „${aeltest.text.slice(0, 80)}“`;
+}
+function beantworte(frage) {
+  const f = frage.toLowerCase();
+  if (/heute|weiter|empfehl|was machen|was jetzt/.test(f)) return empfehlung();
+  const treffer = state.ideen.filter(i => f.split(/\s+/).some(w => w.length > 3 && (i.text + " " + i.projekt).toLowerCase().includes(w)));
+  if (treffer.length) return treffer.slice(0, 8).map(i => `• [${i.projekt}] ${i.text.slice(0, 100)}`).join("\n");
+  return "Dazu finde ich nichts. Probier ein Schlagwort wie Projektname oder „heute“.";
+}
+let filterProj = "Alle";
+const logLines = JSON.parse(localStorage.getItem(KEY + "-log") || "[]");
+
+$("ver").textContent = "v" + VERSION;
+
+function log(msg) {
+  logLines.push(new Date().toLocaleString("de-DE") + "  " + msg);
+  if (logLines.length > 300) logLines.shift();
+  localStorage.setItem(KEY + "-log", JSON.stringify(logLines));
+  $("log").textContent = logLines.join("\n");
+}
+function persist() { localStorage.setItem(KEY, JSON.stringify(state)); }
+
+function renderProjects() {
+  const sel = $("proj"); const alt = sel.value; sel.innerHTML = "";
+  sel.add(new Option("Automatisch zuordnen", "Automatisch"));
+  state.projekte.forEach(p => sel.add(new Option(p, p)));
+  if ([...sel.options].some(o => o.value === alt)) sel.value = alt;
+  const f = $("filter"); f.innerHTML = "";
+  ["Alle", ...state.projekte].forEach(p => {
+    const b = document.createElement("button");
+    b.textContent = p; b.className = p === filterProj ? "on" : "";
+    b.onclick = () => { filterProj = p; render(); };
+    f.appendChild(b);
+  });
+}
+
+function render() {
+  renderProjects();
+  const list = $("list"); list.innerHTML = "";
+  const items = state.ideen.filter(i => filterProj === "Alle" || i.projekt === filterProj)
+    .sort((a, b) => b.zeit.localeCompare(a.zeit));
+  if (!items.length) list.innerHTML = '<div class="meta">Noch keine Ideen.</div>';
+  items.forEach(i => {
+    const d = document.createElement("div"); d.className = "item";
+    const t = document.createElement("div"); t.textContent = i.text;
+    const m = document.createElement("div"); m.className = "meta";
+    m.innerHTML = `<span class="tag">${i.projekt}</span>${new Date(i.zeit).toLocaleString("de-DE")}`;
+    const del = document.createElement("button");
+    del.className = "sec"; del.textContent = "Löschen"; del.style.marginTop = "6px"; del.style.padding = "6px";
+    del.onclick = () => { if (confirm("Idee löschen?")) { state.ideen = state.ideen.filter(x => x.id !== i.id); persist(); log("Gelöscht: " + i.id); render(); } };
+    d.append(t, m, del); list.appendChild(d);
+  });
+}
+
+function save() {
+  let text = $("text").value.trim();
+  if (!text) { $("hint").textContent = "Nichts zum Speichern."; return; }
+  let projekt = $("newproj").value.trim();
+  let auto = false;
+  if (!projekt && $("proj").value === "Automatisch") { projekt = klassifiziere(text).projekt; auto = true; }
+  if (!projekt) projekt = $("proj").value || "Allgemein";
+  if (!state.projekte.includes(projekt)) state.projekte.push(projekt);
+  const idee = { id: Date.now().toString(36), text, projekt, zeit: new Date().toISOString() };
+  state.ideen.push(idee);
+  persist(); log((auto ? "Auto-Zuordnung " : "Gespeichert in ") + projekt + ": " + text.slice(0, 40));
+  // Cloud: Server ordnet zu und vergibt die ID; lokalen Eintrag angleichen
+  cloudSpeichern(text).then(c => {
+    if (!c) return;
+    idee.id = c.id; idee.projekt = c.projekt; idee.zeit = c.zeit;
+    if (!state.projekte.includes(c.projekt)) state.projekte.push(c.projekt);
+    persist(); render(); srvStatus("In der Cloud gespeichert: " + c.projekt);
+  });
+  $("text").value = ""; $("newproj").value = ""; $("hint").textContent = "Gespeichert ✓";
+  render();
+}
+
+// ---- Diktieren über Button (Web Speech API) ----
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recog = null, recording = false, baseText = "";
+if (!SR) {
+  $("rec").disabled = true;
+  $("hint").textContent = "Diktieren wird von diesem Browser nicht unterstützt. Bitte in Safari öffnen.";
+  log("Diktieren nicht verfügbar");
+}
+$("rec").onclick = () => {
+  if (!SR) return;
+  if (recording) { recog.stop(); return; }
+  recog = new SR();
+  recog.lang = "de-DE";
+  recog.continuous = true;
+  recog.interimResults = true;
+  baseText = $("text").value ? $("text").value.trimEnd() + " " : "";
+  recog.onresult = e => {
+    let txt = "";
+    for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
+    $("text").value = baseText + txt;
+  };
+  recog.onerror = e => { $("hint").textContent = "Diktat-Fehler: " + e.error; log("Diktat-Fehler: " + e.error); };
+  recog.onend = () => {
+    recording = false; $("rec").textContent = "🎤 Diktieren"; $("rec").classList.remove("rec");
+    $("hint").textContent = "Diktat beendet. Prüfen und speichern.";
+    log("Diktat beendet");
+  };
+  recog.start(); recording = true;
+  $("rec").textContent = "⏹ Stopp"; $("rec").classList.add("rec");
+  $("hint").textContent = "Sprich jetzt …";
+  log("Diktat gestartet");
+};
+
+$("save").onclick = save;
+
+// ---- Cloud (Worker) ----
+const SRV = JSON.parse(localStorage.getItem(KEY + "-srv") || '{"url":"https://ideen-zentrale.mawo555.workers.dev","token":""}');
+$("srvurl").value = SRV.url; $("srvtoken").value = SRV.token;
+function srvStatus(t) { $("srvstatus").textContent = t; }
+$("srvsave").onclick = () => {
+  SRV.url = $("srvurl").value.trim().replace(/\/$/, ""); SRV.token = $("srvtoken").value.trim();
+  localStorage.setItem(KEY + "-srv", JSON.stringify(SRV));
+  srvStatus("Gespeichert. Jetzt „Synchronisieren“ drücken."); log("Cloud-Einstellungen gespeichert");
+};
+async function srvFetch(path, opt = {}) {
+  const r = await fetch(SRV.url + path, { ...opt, headers: { authorization: "Bearer " + SRV.token, "content-type": "application/json", ...(opt.headers || {}) } });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+async function cloudSpeichern(text) {
+  if (!SRV.url || !SRV.token) return null;
+  try { const i = await srvFetch("/ideen", { method: "POST", body: JSON.stringify({ text }) }); log("Cloud: " + i.projekt); return i; }
+  catch (e) { log("Cloud-Fehler: " + e.message); return null; }
+}
+$("sync").onclick = async () => {
+  try {
+    const d = await srvFetch("/ideen");
+    const ids = new Set(state.ideen.map(i => i.id));
+    d.ideen.forEach(i => { if (!ids.has(i.id)) state.ideen.push(i); });
+    d.projekte.forEach(p => { if (!state.projekte.includes(p)) state.projekte.push(p); });
+    persist(); render(); srvStatus("Synchronisiert: " + state.ideen.length + " Ideen"); log("Sync ok");
+  } catch (e) { srvStatus("Sync fehlgeschlagen: " + e.message); log("Sync-Fehler: " + e.message); }
+};
+$("ask").onclick = () => { $("antwort").textContent = beantworte($("frage").value); log("Frage: " + $("frage").value); };
+$("heute").onclick = () => { $("antwort").textContent = empfehlung(); log("Empfehlung abgefragt"); };
+
+$("exp").onclick = () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "ideen-zentrale-" + new Date().toISOString().slice(0, 10) + ".json";
+  a.click(); log("Export erstellt");
+};
+$("imp").onclick = () => $("impfile").click();
+$("impfile").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    if (!Array.isArray(data.ideen) || !Array.isArray(data.projekte)) throw new Error("Format");
+    state = data; persist(); log("Import: " + data.ideen.length + " Ideen"); render();
+  } catch (err) { alert("Import fehlgeschlagen: " + err.message); log("Import-Fehler: " + err.message); }
+};
+
+log("App gestartet v" + VERSION);
+$("log").textContent = logLines.join("\n");
+render();
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>
