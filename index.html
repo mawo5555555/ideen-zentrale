@@ -46,6 +46,39 @@
   .filter button.on { background:var(--acc); }
   details { font-size:13px; color:var(--mut); }
   pre { white-space:pre-wrap; font-size:12px; color:#c7c7cc; max-height:200px; overflow:auto; }
+  .item .row button { padding:6px; }
+  button.chat { background:linear-gradient(135deg,#bf5af2,#5e5ce6); }
+  .side-h { display:none; }
+  /* ---- Mac / breite Fenster: Seitenleiste, kompakte Bedienelemente ---- */
+  @media (min-width: 900px) {
+    body { font-size:13px; }
+    header { padding:10px 20px; border-bottom:1px solid #2c2c2e; }
+    h1 { font-size:15px; }
+    main { max-width:none; padding:16px 20px 30px; display:grid; gap:14px; align-items:start;
+      grid-template-columns: 210px minmax(0,1fr) 330px;
+      grid-template-areas: "proj list cap" "proj list ask" "proj list offen" "proj list cloud" "proj list misc"; }
+    .card { margin:0; border-radius:12px; padding:14px; box-shadow:0 0 0 1px rgba(255,255,255,.06), 0 4px 14px rgba(0,0,0,.2); }
+    #projCard { grid-area:proj; position:sticky; top:16px; background:#232325; padding:10px 8px; max-height:calc(100vh - 80px); overflow:auto; }
+    #listCard { grid-area:list; grid-row:1 / span 5; }
+    #capCard { grid-area:cap; } #askCard { grid-area:ask; } #offenCard { grid-area:offen; } #cloudCard { grid-area:cloud; } #miscCard { grid-area:misc; }
+    .side-h { display:block; font-size:11px; font-weight:600; color:var(--mut); text-transform:uppercase; letter-spacing:.5px; padding:4px 10px 8px; }
+    .filter { grid-template-columns:1fr; gap:2px; margin:0; }
+    .filter button, .filter button.all { grid-column:auto; display:block; background:transparent; color:var(--txt); text-align:left; font-size:13px; min-height:0; padding:6px 10px; border-radius:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; -webkit-line-clamp:unset; }
+    .filter button:hover { background:#2f2f32; }
+    .filter button.on { background:var(--acc); color:#fff; }
+    button { font-size:13px; padding:7px 12px; border-radius:7px; font-weight:500; cursor:pointer; }
+    button.big { font-size:14px; padding:9px 12px; }
+    button:hover { filter:brightness(1.12); }
+    .row { gap:6px; margin-top:8px; }
+    textarea, select, input { font-size:13px; padding:7px 9px; border-radius:7px; }
+    textarea { min-height:90px; }
+    .item { padding:12px 2px; }
+    .item > div:first-child { font-size:14px; line-height:1.45; }
+    .item .row { justify-content:flex-start; }
+    .item .row > * { flex:0 0 auto; }
+    .item .row button { padding:4px 10px; font-size:12px; }
+    .pdet { font-size:13px; }
+  }
 </style>
 </head>
 <body>
@@ -55,7 +88,7 @@
 </header>
 <main>
 
-  <div class="card">
+  <div class="card" id="capCard">
     <textarea id="text" placeholder="Idee eintippen oder mit dem Button unten diktieren …"></textarea>
     <div class="row">
       <select id="proj" style="flex:1"></select>
@@ -68,7 +101,7 @@
     <div class="hint" id="hint"></div>
   </div>
 
-  <div class="card">
+  <div class="card" id="cloudCard">
     <details>
       <summary>Cloud-Verbindung</summary>
       <input id="srvurl" placeholder="Worker-URL" style="margin-top:8px">
@@ -87,7 +120,7 @@
     <div id="offen" style="margin-top:8px"></div>
   </div>
 
-  <div class="card">
+  <div class="card" id="askCard">
     <div class="row">
       <input id="frage" placeholder="Frag z. B.: Was machen wir heute?" style="flex:1">
       <button id="ask" class="sec">Fragen</button>
@@ -96,13 +129,17 @@
     <div class="row"><button id="heute" class="sec">Was heute?</button></div>
   </div>
 
-  <div class="card">
+  <nav class="card" id="projCard">
+    <div class="side-h">Projekte</div>
     <div class="filter" id="filter"></div>
+  </nav>
+
+  <div class="card" id="listCard">
     <div id="projdetail"></div>
     <div id="list"></div>
   </div>
 
-  <div class="card">
+  <div class="card" id="miscCard">
     <div class="row">
       <button id="exp" class="sec">Export (JSON)</button>
       <button id="imp" class="sec">Import</button>
@@ -112,9 +149,9 @@
       <div style="font-size:14px;color:#f2f2f7;line-height:1.5;margin-top:8px">
         <b>Ideen erfassen</b><br>🎤 Diktieren antippen, sprechen, Stopp. Dann Speichern.<br><br>
         <b>Projekt</b><br>„Automatisch zuordnen“ wählt das Projekt. Passt keins, entsteht ein neues.<br><br>
-        <b>Was heute?</b><br>Empfehlung mit Knöpfen: Startsatz kopieren, Chat öffnen.<br><br>
+        <b>Was heute?</b><br>Empfehlung mit Knöpfen: Chat starten, Startsatz kopieren, Chat öffnen.<br><br><b>Chat starten (Mac)</b><br>Öffnet in der Claude-App eine neue Code-Sitzung im Projektordner, Startsatz und Notizen stehen schon drin. Nur noch Enter drücken.<br><br>
         <b>Projekt-Kachel</b><br>Antippen zeigt Ordner und Startsatz. Chat-Link eintragen und speichern, dann öffnet „Chat öffnen“ direkt den Chat.<br><br>
-        <b>Cloud</b><br>Einmal Worker-URL und Token unter „Cloud-Verbindung“ eintragen, „Verbinden“, dann „Synchronisieren“.<br><br>
+        <b>Neue Projekte</b><br>Der Mac meldet stündlich alle Projektordner (mit CLAUDE.md oder STAND.md). In Claude genügt „leg das Projekt in der Ideen-Zentrale an“. Beim Synchronisieren erscheinen sie hier.<br><br><b>Cloud</b><br>Einmal Worker-URL und Token unter „Cloud-Verbindung“ eintragen, „Verbinden“, dann „Synchronisieren“.<br><br>
         <b>Export/Import</b><br>Export speichert alle Ideen als Datei, Import lädt sie wieder.<br><br>
         <b>Grenze</b><br>Die Zuordnung ist Stichwortabgleich, keine KI. Stichwörter stehen in index.html (KATALOG).
       </div>
@@ -124,7 +161,7 @@
 </main>
 
 <script>
-const VERSION = "1.6.0";
+const VERSION = "1.7.0";
 const KEY = "ideen-zentrale-v1";
 const $ = id => document.getElementById(id);
 // Bekannte Projekte aus den offenen Chats, mit Schlüsselwörtern zur Auto-Zuordnung
@@ -147,25 +184,59 @@ const KATALOG = {
 // Ordner und Startsatz je Projekt (aus CHAT-STARTER.md)
 const PROJEKTE = {
   "PFOTEN WEG (Alarm)": { ordner: "simson-alarm", starter: "Weiter mit PFOTEN WEG. Lies `simson-alarm/BESTELL-SESSION.md` und `INVENTAR.md`." },
-  "Expeditionsmobil/Maggie": { ordner: "maggie3d", starter: "Weiter mit Maggie 3D. Lies `maggie3d/` und die Memory-Datei maggie-3d-dashboard." },
-  "Home Assistant": { ordner: "", starter: "Weiter mit Home Assistant. Lies die Memory-Dateien zu HA und ESP32/ESP-01." },
-  "ESP32 Relaisboard": { ordner: "", starter: "Weiter mit ESP32 Relaisboard. Lies die Memory-Dateien zu ESP32/ESP-01." },
+  "Expeditionsmobil/Maggie": { ordner: "esp-expeditionsmobil", starter: "Weiter mit Expeditionsmobil/Maggie. Lies `STAND.md` und die Memory-Dateien zu Maggie." },
+  "Home Assistant": { ordner: "esp-expeditionsmobil", starter: "Weiter mit Home Assistant. Lies die Memory-Dateien zu HA und ESP32/ESP-01." },
+  "ESP32 Relaisboard": { ordner: "esp-expeditionsmobil", starter: "Weiter mit ESP32 Relaisboard. Lies die Memory-Dateien zu ESP32/ESP-01." },
   "Schrauberschule": { ordner: "schrauberschule", starter: "Weiter mit Schrauberschule. Lies `schrauberschule/` und die Memory-Dateien zur Schrauberschule." },
   "Küchenfee Rezepte": { ordner: "kuechenfee", starter: "Weiter mit Küchenfee. Lies `kuechenfee/`." },
   "Wetter-/Glätte-App (Glatt-Kieker)": { ordner: "glatt-kieker", starter: "Weiter mit Glatt-Kieker. Lies `glatt-kieker/`." },
   "Fahrschule 2.0": { ordner: "fahrschule", starter: "Weiter mit Fahrschule 2.0. Lies `fahrschule/`." },
   "Sprachförderung": { ordner: "sprachfoerderung", starter: "Weiter mit Sprachförderung. Lies `sprachfoerderung/`." },
-  "Schichtenverzeichnis": { ordner: "schichtenverzeichnis", starter: "Weiter mit Schichtenverzeichnis. Lies `schichtenverzeichnis/`." },
-  "Tesla OBD": { ordner: "", starter: "Weiter mit Tesla OBD. Lies die Memory-Datei tesla-obd-projekt." },
-  "OBD universal": { ordner: "", starter: "Weiter mit OBD universal. Lies die Memory-Datei obd-universal-projekt." },
+  "Schichtenverzeichnis": { ordner: "schichtenverzeichnis-brandenburg-neu", starter: "Weiter mit Schichtenverzeichnis. Lies `CLAUDE.md` und die Memory-Datei schichtenverzeichnis-brandenburg-app." },
+  "Tesla OBD": { ordner: "tesla-obd", starter: "Weiter mit Tesla OBD. Lies die Memory-Datei tesla-obd-projekt." },
+  "OBD universal": { ordner: "obd-universal", starter: "Weiter mit OBD universal. Lies die Memory-Datei obd-universal-projekt." },
   "EASun Wechselrichter": { ordner: "", starter: "Weiter mit EASun Wechselrichter. Lies die Memory-Datei easun-wechselrichter-lokal." },
-  "Mac/Xcode": { ordner: "", starter: "Weiter mit Mac/Xcode. Lies die Memory-Datei mac-optimierung-3d-xcode." }
+  "Mac/Xcode": { ordner: "mac-optimierung", starter: "Weiter mit Mac/Xcode. Lies die Memory-Datei mac-optimierung-3d-xcode." }
 };
+// Projekte, die der Mac (Ordner) oder Claude (Connector) gemeldet haben
+function metaAnwenden(meta) {
+  const bekannt = new Set(Object.values(PROJEKTE).map(x => x.ordner).filter(Boolean));
+  let neu = 0;
+  for (const [name, m] of Object.entries(meta || {})) {
+    const vonClaude = m.quelle === "claude";
+    if (!vonClaude && (bekannt.has(m.ordner) || PROJEKTE[name])) continue;
+    PROJEKTE[name] = { ordner: m.ordner || "", starter: m.starter || "Weiter mit " + name + "." };
+    if (m.stichworte && m.stichworte.length) KATALOG[name] = m.stichworte.map(w => w.toLowerCase());
+    if (m.ordner) bekannt.add(m.ordner);
+    if (typeof state !== "undefined" && !state.projekte.includes(name)) { state.projekte.push(name); neu++; }
+  }
+  return neu;
+}
 const projInfo = p => PROJEKTE[p] || { ordner: "", starter: "Weiter mit " + p + "." };
+// ---- Direktstart einer Claude-Code-Sitzung (nur Mac-App von Claude) ----
+const BASIS = "/Users/matthiaswoltmann/Downloads/claude";
+const IST_MAC = /Macintosh/.test(navigator.userAgent) && !("ontouchend" in document);
+function chatStarten(p, ideen) {
+  const info = projInfo(p);
+  let q = info.starter;
+  if (!info.ordner) q += " Das Projekt hat noch keinen eigenen Ordner. Bitte lege einen an.";
+  if (ideen && ideen.length) q += "\n\nNotizen aus der Ideen-Zentrale:\n" + ideen.map(i => "- " + i.text).join("\n");
+  q = q.slice(0, 4000);
+  const ordner = BASIS + (info.ordner ? "/" + info.ordner : "");
+  location.href = "claude://code/new?folder=" + encodeURIComponent(ordner) + "&q=" + encodeURIComponent(q) + "&source=ideen-zentrale";
+  log("Chat gestartet: " + p + " (" + (ideen ? ideen.length : 0) + " Notizen)");
+}
+function chatKnopf(p, ideen, text = "Chat starten") {
+  const b = document.createElement("button"); b.textContent = text; b.className = "chat";
+  if (!IST_MAC) b.style.display = "none";
+  b.onclick = () => chatStarten(p, ideen);
+  return b;
+}
 const links = () => JSON.parse(localStorage.getItem(KEY + "-links") || "{}");
 
 let state = JSON.parse(localStorage.getItem(KEY) || '{"ideen":[],"projekte":["Allgemein"]}');
 Object.keys(KATALOG).forEach(p => { if (!state.projekte.includes(p)) state.projekte.push(p); });
+metaAnwenden(JSON.parse(localStorage.getItem(KEY + "-meta") || "{}"));
 
 // Zuordnung: Projekt mit den meisten Treffern, sonst neues Projekt aus den Wörtern der Idee
 // Treffer = Summe der Länge der getroffenen Stichwörter. Ganze Wörter zählen; Wortteile nur bei langen Stichwörtern (z. B. Komposita)
@@ -251,16 +322,16 @@ function render() {
     m.innerHTML = `<span class="tag">${i.projekt}</span>${new Date(i.zeit).toLocaleString("de-DE")}`;
     const knoepfe = document.createElement("div"); knoepfe.className = "row"; knoepfe.style.marginTop = "6px";
     const edit = document.createElement("button");
-    edit.className = "sec"; edit.textContent = "Bearbeiten"; edit.style.padding = "6px";
+    edit.className = "sec"; edit.textContent = "Bearbeiten";
     edit.onclick = () => bearbeiten(d, i);
     const del = document.createElement("button");
-    del.className = "sec"; del.textContent = "Löschen"; del.style.padding = "6px";
+    del.className = "sec"; del.textContent = "Löschen";
     del.onclick = async () => {
       if (!confirm("Idee löschen?")) return;
       state.ideen = state.ideen.filter(x => x.id !== i.id); persist(); log("Gelöscht: " + i.text.slice(0, 40)); render();
       if (i.cloud) { try { await srvFetch("/ideen/" + i.id, { method: "DELETE" }); srvStatus("In der Cloud gelöscht"); } catch (e) { log("Cloud-Löschen: " + e.message); } }
     };
-    knoepfe.append(edit, del);
+    knoepfe.append(chatKnopf(i.projekt, [i], "Chat"), edit, del);
     d.append(t, m, knoepfe); list.appendChild(d);
   });
 }
@@ -418,8 +489,10 @@ $("sync").onclick = async () => {
       if (l) Object.assign(l, c, { cloud: true }); else state.ideen.push({ ...c, cloud: true });
     });
     d.projekte.forEach(p => { if (!state.projekte.includes(p)) state.projekte.push(p); });
+    localStorage.setItem(KEY + "-meta", JSON.stringify(d.meta || {}));
+    const neuP = metaAnwenden(d.meta);
     persist(); render();
-    srvStatus("Synchronisiert: " + state.ideen.length + " Ideen" + (hoch ? ", " + hoch + " hochgeladen" : "") + (weg ? ", " + weg + " entfernt" : ""));
+    srvStatus("Synchronisiert: " + state.ideen.length + " Ideen" + (neuP ? ", " + neuP + " neue Projekte" : "") + (hoch ? ", " + hoch + " hochgeladen" : "") + (weg ? ", " + weg + " entfernt" : ""));
     log("Sync ok (hoch " + hoch + ", weg " + weg + ")");
     ladeOffen();
   } catch (e) { srvStatus("Sync fehlgeschlagen: " + e.message); log("Sync-Fehler: " + e.message); }
@@ -435,7 +508,7 @@ function aktionen(p) {
   kopie.onclick = async () => { await navigator.clipboard.writeText(projInfo(p).starter); kopie.textContent = "Kopiert ✓ – in den Chat einfügen"; log("Startsatz kopiert: " + p); };
   const open = document.createElement("button"); open.textContent = "Chat öffnen";
   open.onclick = () => { const url = links()[p]; if (url) window.open(url, "_blank"); else { $("hint").textContent = "Noch kein Chat-Link für " + p + " hinterlegt (unten im Projekt)."; } };
-  wrap.append(kopie, open); box.appendChild(wrap);
+  wrap.append(chatKnopf(p, state.ideen.filter(i => i.projekt === p && !i.erledigt)), kopie, open); box.appendChild(wrap);
 }
 $("heute").onclick = () => {
   $("antwort").textContent = empfehlung(); aktionen(letzteEmpf); log("Empfehlung abgefragt");
@@ -451,13 +524,15 @@ function renderDetail() {
   const row = document.createElement("div"); row.className = "row";
   const kopie = document.createElement("button"); kopie.className = "sec"; kopie.textContent = "Startsatz kopieren";
   kopie.onclick = async () => { await navigator.clipboard.writeText(info.starter); kopie.textContent = "Kopiert ✓"; };
-  row.appendChild(kopie);
+  row.append(chatKnopf(p, state.ideen.filter(i => i.projekt === p && !i.erledigt), "Chat starten mit allen Notizen"), kopie);
   const linkIn = document.createElement("input"); linkIn.placeholder = "Chat-Link (claude.ai/…)"; linkIn.value = links()[p] || ""; linkIn.style.marginTop = "8px";
   const save = document.createElement("button"); save.className = "sec"; save.textContent = "Link speichern"; save.style.marginTop = "8px";
   save.onclick = () => { const l = links(); l[p] = linkIn.value.trim(); localStorage.setItem(KEY + "-links", JSON.stringify(l)); save.textContent = "Gespeichert ✓"; log("Chat-Link für " + p); };
   const open = document.createElement("button"); open.textContent = "Chat öffnen"; open.style.marginTop = "8px";
   open.onclick = () => { const url = links()[p]; if (url) window.open(url, "_blank"); else save.textContent = "Erst Link eintragen"; };
-  d.append(row, linkIn, save, open);
+  save.style.marginTop = open.style.marginTop = "0";
+  const row2 = document.createElement("div"); row2.className = "row"; row2.append(save, open);
+  d.append(row, linkIn, row2);
   box.appendChild(d);
 }
 

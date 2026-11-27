@@ -34,3 +34,12 @@
 ## Dateien
 - index.html (App inkl. Styles und Logik)
 - manifest.webmanifest, sw.js (Offline-Cache)
+
+## Stand 27.11.2026 (v1.6.0, Worker 1.3.0)
+- iPhone und Mac-App (Safari „Zum Dock“) mit Cloud verbunden.
+- Neu: Ideen bearbeiten/löschen (PUT/DELETE /ideen/:id), Sync in beide Richtungen, Diktat-Leerzeichen.
+- Testidee gelöscht. Schichtenverzeichnis-Idee in der Cloud.
+- Offene Punkte: LaunchAgent `~/Library/LaunchAgents/de.ideen-zentrale.sync-offen.plist` stündlich + beim Anmelden, Log `~/Library/Logs/ideen-zentrale-sync.log`.
+- Claude-Connector geprüft: verbunden.
+### Offen
+- Optional: Claude-API-Zuordnung (Haiku), braucht API-Guthaben.
